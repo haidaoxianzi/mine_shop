@@ -1,12 +1,15 @@
 package com.ms.item.model;
 
+import com.alibaba.druid.support.json.JSONUtils;
+import com.alibaba.fastjson.JSON;
+
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
 
-public class ItemModel implements Serializable{
+public class ItemModel implements Serializable {
     private Integer id;
 
     //商品名称
@@ -15,7 +18,7 @@ public class ItemModel implements Serializable{
 
     //商品价格
     @NotNull(message = "商品价格不能为空")
-    @Min(value = 0,message = "商品价格必须大于0")
+    @Min(value = 0, message = "商品价格必须大于0")
     private BigDecimal price;
 
     //商品的库存
@@ -99,4 +102,14 @@ public class ItemModel implements Serializable{
     public void setImgUrl(String imgUrl) {
         this.imgUrl = imgUrl;
     }
+
+    public static String toJsonString(ItemModel itemModel) {
+        return JSON.toJSONString(itemModel);
+    }
+
+    public static ItemModel toBean(String jsonString) {
+         return JSON.parseObject(jsonString,ItemModel.class);
+    }
+    //ActionResult<Set<String>>result =
+    // JSON.parseObject(resultString,new TypeReference<ActionResult<Set<String>>>(){});
 }
