@@ -1,5 +1,6 @@
 package com.ms.item.model;
 
+import com.alibaba.fastjson.JSON;
 import lombok.Data;
 import org.joda.time.DateTime;
 
@@ -28,5 +29,11 @@ public class PromoModel implements Serializable {
     //秒杀活动的商品价格
     private BigDecimal promoItemPrice;
 
+    public static String toJsonString(PromoModel promoModel) {
+        return JSON.toJSONString(promoModel);
+    }
 
+    public static PromoModel toBean(String jsonString) {
+        return JSON.parseObject(jsonString,PromoModel.class);
+    }
 }

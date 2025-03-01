@@ -2,6 +2,7 @@ package com.ms.item.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.ms.item.serializer.DateTimeJsonDeserializer;
 import com.ms.item.serializer.DateTimeJsonSerializer;
 import org.joda.time.DateTime;
@@ -30,13 +31,18 @@ public class RedisConfig {
         //解决value的序列化方式
         Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
 
-
         ObjectMapper objectMapper=new ObjectMapper();
-        SimpleModule simpleModule=new SimpleModule();
 
+        SimpleModule simpleModule=new SimpleModule();
         simpleModule.addSerializer(DateTime.class, new DateTimeJsonSerializer());
         simpleModule.addDeserializer(DateTime.class, new DateTimeJsonDeserializer());
+
         objectMapper.registerModule(simpleModule);
+
+        /*
+        mapper.registerModule(new JodaModule());
+        */
+
         jackson2JsonRedisSerializer.setObjectMapper(objectMapper);
         redisTemplate.setValueSerializer(jackson2JsonRedisSerializer);
         return redisTemplate;

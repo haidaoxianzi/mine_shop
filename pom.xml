@@ -7,6 +7,7 @@
     <version>0.0.1-SNAPSHOT</version>
     <modules>
         <module>item</module>
+        <module>data-syn</module>
     </modules>
     <name>mine_shop</name>
     <description>商城项目</description>

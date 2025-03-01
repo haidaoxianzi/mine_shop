@@ -6,14 +6,19 @@ import com.ms.item.response.CommonReturnType;
 import com.ms.item.service.ItemService;
 import com.ms.item.vo.ItemVO;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Controller
@@ -25,6 +30,12 @@ public class ItemController {
 
     @Autowired
     private RedisTemplate redisTemplate;
+
+    @Autowired
+    private RocketMQTemplate rocketMQTemplate;
+
+    @Value("${rocketmq.producer.topic}")
+    private String topic;
 
     //创建商品的controller
     @RequestMapping(value = "/create", method = {RequestMethod.POST})
@@ -48,15 +59,40 @@ public class ItemController {
         return CommonReturnType.create(itemVO);
     }
 
+   /* ExecutorService es = new ThreadPoolExecutor(10, 10, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(10), new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable r) {
+            return new Thread(r);
+        }
+    }, new ThreadPoolExecutor.AbortPolicy());*/
+
+    ScheduledExecutorService esService = Executors.newScheduledThreadPool(1);
 
     //更新商品
     @RequestMapping(value = "/update", method = {RequestMethod.POST})
     @ResponseBody
     public CommonReturnType updateItem(@RequestBody ItemModel itemModel) throws BusinessException {
+        String key = "item_" + itemModel.getId();
 
+        //方式一，通过线程池，完成异步双删策略
+        //step1、 删除缓存
+       /* redisTemplate.delete(key);
+        //step2、更新数据库
+        ItemModel itemModelForReturn = itemService.updateItem(itemModel);
+        ItemVO itemVO = convertVOFromModel(itemModelForReturn);
+        //step3、异步处理
+        esService.schedule(() -> {
+           log.info("再次删除缓存");
+            redisTemplate.delete(key);
+        }, 1, TimeUnit.SECONDS);
+       */
+
+        //方式二 更新之后直接发mq的形式更新/删除缓存
         ItemModel itemModelForReturn = itemService.updateItem(itemModel);
         ItemVO itemVO = convertVOFromModel(itemModelForReturn);
 
+        rocketMQTemplate.convertAndSend(topic, itemModel.getId());
+        log.info("发送商品更新ID到mq,id: {}", itemModel.getId());
         return CommonReturnType.create(itemVO);
     }
 
@@ -76,15 +112,14 @@ public class ItemController {
         ItemModel itemModel = ItemModel.toBean((String) redisTemplate.opsForValue().get("item_" + id));
         System.out.println("查缓存结果：" + itemModel);
         //todo 123wq 并发量较大时，考虑到缓存没值，首次查询会有多个线程争抢，这里要加锁
-        if (null == itemModel) {
+       /* if (null == itemModel) {
             itemModel = itemService.getItemById(id);
             redisTemplate.opsForValue().set("item_" + id, ItemModel.toJsonString(itemModel));
             System.out.println("查库，存储 缓存");
-        }
+        }*/
         ItemVO itemVO = convertVOFromModel(itemModel);
         return CommonReturnType.create(itemVO);
     }
-
 
 
     private ItemVO convertVOFromModel(ItemModel itemModel) {
