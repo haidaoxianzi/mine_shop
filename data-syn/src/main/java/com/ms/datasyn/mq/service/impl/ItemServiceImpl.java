@@ -1,5 +1,6 @@
 package com.ms.datasyn.mq.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.ms.datasyn.mq.dao.ItemDOMapper;
 import com.ms.datasyn.mq.dao.ItemStockDOMapper;
 import com.ms.datasyn.mq.dao.ItemStockDOMapperSpec;
@@ -109,13 +110,13 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemModel getItemById(Integer id) {
         ItemDO itemDO = itemDOMapper.selectByPrimaryKey(id);
-        log.info("通过数据库获取商品信息：{}",itemDO);
+        log.info("通过数据库获取商品信息：{}",JSON.toJSONString(itemDO));
         if(itemDO == null){
             return null;
         }
         //操作获得库存数量
         ItemStockDO itemStockDO = itemStockDOMapperSpec.selectByItemId(itemDO.getId());
-        log.info("通过数据库获取库存信息：{}",itemStockDO);
+        log.info("通过数据库获取库存信息：{}", JSON.toJSONString(itemStockDO));
 
 
         //将dataobject->model

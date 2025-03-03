@@ -1,5 +1,6 @@
 package com.ms.item.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.ms.item.exception.BusinessException;
 import com.ms.item.service.ItemService;
 import com.ms.item.dao.ItemDOMapper;
@@ -109,13 +110,13 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemModel getItemById(Integer id) {
         ItemDO itemDO = itemDOMapper.selectByPrimaryKey(id);
-        log.info("通过数据库获取商品信息：{}",itemDO);
+        log.info("通过数据库获取商品信息：{}", JSON.toJSONString(itemDO));
         if(itemDO == null){
             return null;
         }
         //操作获得库存数量
         ItemStockDO itemStockDO = itemStockDOMapperSpec.selectByItemId(itemDO.getId());
-        log.info("通过数据库获取库存信息：{}",itemStockDO);
+        log.info("通过数据库获取库存信息：{}",JSON.toJSONString(itemStockDO));
 
 
         //将dataobject->model
