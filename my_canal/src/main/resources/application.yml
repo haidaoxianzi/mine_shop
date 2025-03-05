@@ -1,0 +1,13 @@
+server:
+  port: 9800
+canal:
+  server: 172.18.100.37:1111
+  destination: item
+
+# rocketmq生产配置
+rocketmq:
+  name-server: 172.18.100.37:9876
+  producer:
+    group: ms-canal
+    send-message-timeout: 10000
+

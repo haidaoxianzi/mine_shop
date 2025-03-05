@@ -91,7 +91,7 @@ public class ItemController {
         ItemModel itemModelForReturn = itemService.updateItem(itemModel);
         ItemVO itemVO = convertVOFromModel(itemModelForReturn);
 
-        rocketMQTemplate.convertAndSend(topic, itemModel.getId());
+        //rocketMQTemplate.convertAndSend(topic, itemModel.getId());
         log.info("发送商品更新ID到mq,id: {}", itemModel.getId());
         return CommonReturnType.create(itemVO);
     }

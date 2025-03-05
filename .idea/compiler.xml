@@ -8,6 +8,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="data-syn" />
         <module name="item" />
+        <module name="my_canal" />
       </profile>
     </annotationProcessing>
   </component>
