@@ -8,6 +8,8 @@ import com.ms.item.vo.ItemVO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.joda.time.format.DateTimeFormat;
+import org.redisson.api.RBloomFilter;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +17,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,6 +40,26 @@ public class ItemController {
     @Value("${rocketmq.producer.topic}")
     private String topic;
 
+    @Autowired
+    private RedissonClient redissonClient;
+
+    RBloomFilter<String> bloomFilter;
+
+    RBloomFilter<String> hotDataBloomFilter;
+
+    @PostConstruct
+    public void init() {
+        //todo 这里要注意，除了初始化时把全部值加载到布隆过滤器，在添加，删除元素时，也要维护，步骤省略哈
+        //创建布隆过滤器
+        bloomFilter = redissonClient.getBloomFilter("items-bloomfilter");
+        //初始化布隆过滤器，预计初始的元素个数10000，误差率0.03
+        bloomFilter.tryInit(100000, 0.03);
+
+        //热点数据布隆过滤器
+        hotDataBloomFilter = redissonClient.getBloomFilter("hots-bloomFilter");
+        hotDataBloomFilter.tryInit(100000, 0.03);
+    }
+
     //创建商品的controller
     @RequestMapping(value = "/create", method = {RequestMethod.POST})
     @ResponseBody
@@ -55,6 +78,7 @@ public class ItemController {
 
         ItemModel itemModelForReturn = itemService.createItem(itemModel);
         ItemVO itemVO = convertVOFromModel(itemModelForReturn);
+        bloomFilter.add("item_" + itemModel.getId());
 
         return CommonReturnType.create(itemVO);
     }
@@ -109,14 +133,32 @@ public class ItemController {
     @RequestMapping(value = "/get", method = {RequestMethod.GET})
     @ResponseBody
     public CommonReturnType getItem(@RequestParam(name = "id") Integer id) {
-        ItemModel itemModel = ItemModel.toBean((String) redisTemplate.opsForValue().get("item_" + id));
+        String key = "item_" + id;
+        ItemModel itemModel = ItemModel.toBean((String) redisTemplate.opsForValue().get(key));
         System.out.println("查缓存结果：" + itemModel);
+
+        //解决缓存穿透问题方案二：使用布隆过滤器防止缓存穿透
+        if (!bloomFilter.contains(key)) {
+            log.info("布隆过滤器判断没有对应数据,要获取的数据itemId:{}", key);
+            return CommonReturnType.create(null);
+        }
+
         //todo 123wq 并发量较大时，考虑到缓存没值，首次查询会有多个线程争抢，这里要加锁
-       /* if (null == itemModel) {
+        if (null == itemModel) {
             itemModel = itemService.getItemById(id);
-            redisTemplate.opsForValue().set("item_" + id, ItemModel.toJsonString(itemModel));
+            //如果是热点数据，不设置过期时间，直接返回,解决缓存击穿问题方案一：缓存数据永不过期
+            if(hotDataBloomFilter.contains(key)){
+                ItemVO itemVO = convertVOFromModel(itemModel);
+                return CommonReturnType.create(itemVO);
+            }
+
+            redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel),10, TimeUnit.SECONDS);
+            //解决缓存穿透问题方案一：缓存存储空值并设置过期时间
+            if (itemModel == null) {
+                redisTemplate.opsForValue().set(key, null, 5, TimeUnit.SECONDS);
+            }
             System.out.println("查库，存储 缓存");
-        }*/
+        }
         ItemVO itemVO = convertVOFromModel(itemModel);
         return CommonReturnType.create(itemVO);
     }
