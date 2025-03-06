@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.joda.time.format.DateTimeFormat;
 import org.redisson.api.RBloomFilter;
+import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@Controller
+@RestController
 @RequestMapping("/item")
 public class ItemController {
 
@@ -60,6 +61,11 @@ public class ItemController {
         hotDataBloomFilter.tryInit(100000, 0.03);
     }
 
+    @GetMapping("/addBloom/{id}")
+    public String addHotBloom(@PathVariable("id") Integer id ){
+        hotDataBloomFilter.add("item_"+id);
+        return "ok";
+    }
     //创建商品的controller
     @RequestMapping(value = "/create", method = {RequestMethod.POST})
     @ResponseBody
@@ -142,22 +148,53 @@ public class ItemController {
             log.info("布隆过滤器判断没有对应数据,要获取的数据itemId:{}", key);
             return CommonReturnType.create(null);
         }
-
+        if (null != itemModel) {
+            ItemVO itemVO = convertVOFromModel(itemModel);
+            return CommonReturnType.create(itemVO);
+        }
+        //如果是热点数据，解决缓存击穿问题方案二：加互斥锁
+        if (hotDataBloomFilter.contains(key)) {
+            return dealByLock(id);
+        }
         //todo 123wq 并发量较大时，考虑到缓存没值，首次查询会有多个线程争抢，这里要加锁
         if (null == itemModel) {
             itemModel = itemService.getItemById(id);
-            //如果是热点数据，不设置过期时间，直接返回,解决缓存击穿问题方案一：缓存数据永不过期
-            if(hotDataBloomFilter.contains(key)){
+            //如果是热点数据，解决缓存击穿问题方案一：缓存数据永不过期[不设置过期时间，直接返回]
+            if (hotDataBloomFilter.contains(key)) {
                 ItemVO itemVO = convertVOFromModel(itemModel);
                 return CommonReturnType.create(itemVO);
             }
 
-            redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel),10, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel), 10, TimeUnit.SECONDS);
             //解决缓存穿透问题方案一：缓存存储空值并设置过期时间
             if (itemModel == null) {
                 redisTemplate.opsForValue().set(key, null, 5, TimeUnit.SECONDS);
             }
             System.out.println("查库，存储 缓存");
+        }
+        ItemVO itemVO = convertVOFromModel(itemModel);
+        return CommonReturnType.create(itemVO);
+    }
+
+    /**
+     * 如果是热点数据，解决缓存击穿问题方案二：
+     * 加互斥锁
+     */
+    private CommonReturnType dealByLock(Integer id) {
+        String key = "item_" + id;
+        String lockKey = "item-hots-deals";
+        RLock lock = redissonClient.getLock(key);
+        ItemModel itemModel = null;
+        try {
+            lock.lock();
+            itemModel = itemService.getItemById(id);
+            if (null == itemModel) {
+                redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel), 10, TimeUnit.SECONDS);
+            } else {
+                redisTemplate.opsForValue().set(key, null, 5, TimeUnit.SECONDS);
+            }
+        } finally {
+            lock.unlock();
         }
         ItemVO itemVO = convertVOFromModel(itemModel);
         return CommonReturnType.create(itemVO);
