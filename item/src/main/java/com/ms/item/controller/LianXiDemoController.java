@@ -1,10 +1,8 @@
 package com.ms.item.controller;
 
-import com.alibaba.fastjson.JSON;
 import com.ms.item.exception.BusinessException;
 import com.ms.item.model.ItemModel;
 import com.ms.item.response.CommonReturnType;
-import com.ms.item.service.CacheService;
 import com.ms.item.service.ItemService;
 import com.ms.item.vo.ItemVO;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +15,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
@@ -28,8 +25,8 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RestController
-@RequestMapping("/item")
-public class ItemController {
+@RequestMapping("/item1")
+public class LianXiDemoController {
 
     @Autowired
     private ItemService itemService;
@@ -46,12 +43,9 @@ public class ItemController {
     @Autowired
     private RedissonClient redissonClient;
 
-    private RBloomFilter<String> bloomFilter;
+    RBloomFilter<String> bloomFilter;
 
-    private RBloomFilter<String> hotDataBloomFilter;
-
-    @Autowired
-    private CacheService commonCache;
+    RBloomFilter<String> hotDataBloomFilter;
 
     @PostConstruct
     public void init() {
@@ -68,9 +62,7 @@ public class ItemController {
 
     @GetMapping("/addBloom/{id}")
     public String addHotBloom(@PathVariable("id") Integer id) {
-        String key = "item_" + id;
-        hotDataBloomFilter.add(key);
-        bloomFilter.add(key);
+        hotDataBloomFilter.add("item_" + id);
         return "ok";
     }
 
@@ -96,6 +88,9 @@ public class ItemController {
 
         return CommonReturnType.create(itemVO);
     }
+
+
+    ScheduledExecutorService esService = Executors.newScheduledThreadPool(1);
 
     //更新商品
     @RequestMapping(value = "/update", method = {RequestMethod.POST})
@@ -139,22 +134,14 @@ public class ItemController {
     @ResponseBody
     public CommonReturnType getItem(@RequestParam(name = "id") Integer id) {
         String key = "item_" + id;
-        ItemModel itemModel = null;
-        //先从本地缓存获取
-        Object obj = commonCache.getCommonCache(key);
-        if (null != obj) {
-            itemModel = (ItemModel) obj;
-            ItemVO itemVO = convertVOFromModel(itemModel);
-            log.info("从本地缓存中获取数据：{}", JSON.toJSONString(itemModel));
-            return CommonReturnType.create(itemVO);
-        }
+        ItemModel itemModel = ItemModel.toBean((String) redisTemplate.opsForValue().get(key));
+        System.out.println("查缓存结果：" + itemModel);
+
         //解决缓存穿透问题方案二：使用布隆过滤器防止缓存穿透
         if (!bloomFilter.contains(key)) {
             log.info("布隆过滤器判断没有对应数据,要获取的数据itemId:{}", key);
             return CommonReturnType.create(null);
         }
-        itemModel = ItemModel.toBean((String) redisTemplate.opsForValue().get(key));
-        log.info("查缓存结果：" + itemModel);
         if (null != itemModel) {
             ItemVO itemVO = convertVOFromModel(itemModel);
             return CommonReturnType.create(itemVO);
@@ -166,8 +153,6 @@ public class ItemController {
         //todo 123wq 并发量较大时，考虑到缓存没值，首次查询会有多个线程争抢，这里要加锁
         if (null == itemModel) {
             itemModel = itemService.getItemById(id);
-            //在本地缓存 存储
-            commonCache.setCommonCache(key,itemModel);
             //热点数据，解决缓存击穿问题方案一：缓存数据永不过期[不设置过期时间，直接返回]
             if (hotDataBloomFilter.contains(key)) {
 
@@ -181,7 +166,7 @@ public class ItemController {
             if (itemModel == null) {
                 redisTemplate.opsForValue().set(key, null, 5, TimeUnit.SECONDS);
             }
-            log.info("查库，存储 缓存");
+            System.out.println("查库，存储 缓存");
         }
         ItemVO itemVO = convertVOFromModel(itemModel);
         return CommonReturnType.create(itemVO);
@@ -194,16 +179,12 @@ public class ItemController {
     private CommonReturnType dealByLock(Integer id) {
         String key = "item_" + id;
         String lockKey = "item-hots-deals";
-        RLock lock = redissonClient.getLock(lockKey);
+        RLock lock = redissonClient.getLock(key);
         ItemModel itemModel = null;
         try {
             lock.lock();
             itemModel = itemService.getItemById(id);
-
-
-            if (null != itemModel) {
-                //在本地缓存 存储
-                commonCache.setCommonCache(key,itemModel);
+            if (null == itemModel) {
                 redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel), 10, TimeUnit.SECONDS);
             } else {
                 redisTemplate.opsForValue().set(key, null, 5, TimeUnit.SECONDS);
@@ -232,5 +213,60 @@ public class ItemController {
             itemVO.setPromoStatus(0);
         }
         return itemVO;
+    }
+
+    //解决缓存击穿和穿透方案落地 Demo1
+    //商品详情页浏览
+    @RequestMapping(value = "/get3", method = {RequestMethod.GET})
+    @ResponseBody
+    public CommonReturnType getItem3(@RequestParam(name = "id") Integer id) {
+        String key = "item_" + id;
+        //解决缓存穿透问题方案二：使用布隆过滤器防止缓存穿透
+        if (!bloomFilter.contains(key)) {
+            log.info("布隆过滤器判断没有对应数据,要获取的数据itemId:{}", key);
+            return CommonReturnType.create(null);
+        }
+        ItemModel itemModel = ItemModel.toBean((String) redisTemplate.opsForValue().get(key));
+        System.out.println("查缓存结果：" + itemModel);
+        //todo 123wq 并发量较大时，考虑到缓存没值，首次查询会有多个线程争抢，这里要加锁
+        if (null == itemModel) {
+            itemModel = itemService.getItemById(id);
+            //热点数据，解决缓存击穿问题方案一：缓存数据永不过期[不设置过期时间，直接返回]
+            if (hotDataBloomFilter.contains(key)) {
+                redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel));
+                ItemVO itemVO = convertVOFromModel(itemModel);
+                return CommonReturnType.create(itemVO);
+            }
+            redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel), 10, TimeUnit.SECONDS);
+            System.out.println("查库，存储 缓存");
+        }
+        ItemVO itemVO = convertVOFromModel(itemModel);
+        return CommonReturnType.create(itemVO);
+    }
+
+    //解决缓存击穿和穿透方案落地 Demo2
+    //商品详情页浏览
+    @RequestMapping(value = "/get4", method = {RequestMethod.GET})
+    @ResponseBody
+    public CommonReturnType getItem4(@RequestParam(name = "id") Integer id) {
+        String key = "item_" + id;
+        ItemModel itemModel = ItemModel.toBean((String) redisTemplate.opsForValue().get(key));
+        System.out.println("查缓存结果：" + itemModel);
+        String lockKey = "item-hots-deals";
+        //缓存失效要查库，就是要加互斥锁。【包括热点数据解决缓存击穿问题方案二：加互斥锁】
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            lock.lock();
+            itemModel = itemService.getItemById(id);
+            if (null != itemModel) {
+                redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel), 10, TimeUnit.SECONDS);
+            } else {
+                redisTemplate.opsForValue().set(key, null, 5, TimeUnit.SECONDS);
+            }
+        } finally {
+            lock.unlock();
+        }
+        ItemVO itemVO = convertVOFromModel(itemModel);
+        return CommonReturnType.create(itemVO);
     }
 }
