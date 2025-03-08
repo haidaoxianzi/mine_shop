@@ -2,26 +2,18 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <artifactId>mine_shop1</artifactId>
+        <groupId>com.ms</groupId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
     <groupId>com.ms</groupId>
-    <artifactId>mine_shop1</artifactId>
+    <artifactId>my_stock</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <modules>
-        <module>item</module>
-        <module>data-syn</module>
-        <module>my_canal</module>
-        <module>my_product</module>
-        <module>my_shopcart</module>
-        <module>order</module>
-        <module>userModel</module>
-        <module>my_stock</module>
-        <module>my_activity</module>
-        <module>msg_push</module>
-    </modules>
-    <name>mine_shop1</name>
-    <description>商城项目</description>
-    <packaging>pom</packaging>
+    <name>my_stock</name>
+    <description>my_stock</description>
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spring-boot.version>2.6.13</spring-boot.version>
@@ -29,23 +21,22 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
-        </dependency>
-       <!-- <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
-        </dependency>-->
+            <version>1.18.8</version>
+        </dependency>
+
 
     </dependencies>
     <dependencyManagement>
@@ -60,15 +51,15 @@
         </dependencies>
     </dependencyManagement>
 
-   <!-- <build>
+    <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>11</source>
+                    <target>11</target>
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
@@ -77,7 +68,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.ms.mine_shop1.MineShop1Application</mainClass>
+                    <mainClass>com.ms.my_stock.MyStockApplication</mainClass>
                     <skip>true</skip>
                 </configuration>
                 <executions>
@@ -90,6 +81,6 @@
                 </executions>
             </plugin>
         </plugins>
-    </build>-->
+    </build>
 
 </project>

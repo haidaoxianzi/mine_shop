@@ -7,8 +7,15 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="item" />
+        <module name="userModel" />
         <module name="data-syn" />
+        <module name="my_shopcart" />
+        <module name="my_activity" />
         <module name="my_canal" />
+        <module name="my_product" />
+        <module name="msg_push" />
+        <module name="my_stock" />
+        <module name="order" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>

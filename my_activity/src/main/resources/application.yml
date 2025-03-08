@@ -1,0 +1,12 @@
+server:
+  port: 8009
+spring:
+  cloud:
+    nacos:
+      discover:
+        server-addr: localhost:8848
+        service: order
+
+rocketmq:
+  name-server: localhost:9876
+

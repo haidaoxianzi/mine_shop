@@ -9,6 +9,13 @@
         <option value="$PROJECT_DIR$/data-syn/pom.xml" />
         <option value="$PROJECT_DIR$/my_canal/pom.xml" />
         <option value="$PROJECT_DIR$/my_order/pom.xml" />
+        <option value="$PROJECT_DIR$/my_product/pom.xml" />
+        <option value="$PROJECT_DIR$/my_shopcart/pom.xml" />
+        <option value="$PROJECT_DIR$/order/pom.xml" />
+        <option value="$PROJECT_DIR$/userModel/pom.xml" />
+        <option value="$PROJECT_DIR$/my_stock/pom.xml" />
+        <option value="$PROJECT_DIR$/my_activity/pom.xml" />
+        <option value="$PROJECT_DIR$/msg_push/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

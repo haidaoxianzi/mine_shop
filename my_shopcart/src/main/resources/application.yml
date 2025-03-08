@@ -1,0 +1,9 @@
+server:
+  port: 12001
+
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        service: shopcart_module

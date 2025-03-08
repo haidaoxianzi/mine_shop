@@ -1,0 +1,19 @@
+server:
+  port: 8001
+spring:
+  cloud:
+    nacos:
+      discover:
+        server-addr: localhost:8848
+        service: order
+
+#ribbon:
+#  eager-load:
+#    enabled: true
+#    clients: stock_module,product-module,shopcart_module,user_module
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: my_order
+    send-message-timeout: 10000
+
