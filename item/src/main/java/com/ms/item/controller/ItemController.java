@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -90,10 +92,15 @@ public class ItemController {
         itemModel.setStock(stock);
         itemModel.setImgUrl(imgUrl);
 
-        ItemModel itemModelForReturn = itemService.createItem(itemModel);
-        ItemVO itemVO = convertVOFromModel(itemModelForReturn);
+        ItemModel itemModelForReturn = null;
+        // itemService.createItem(itemModel);
+        //单条插入，循环操作100次
+        for (int i = 0; i < 100; i++) {
+            itemModel.setId(null);
+            itemModelForReturn = itemService.createItem(itemModel);
+        }
         bloomFilter.add("item_" + itemModel.getId());
-
+        ItemVO itemVO = convertVOFromModel(itemModelForReturn);
         return CommonReturnType.create(itemVO);
     }
 
@@ -167,7 +174,7 @@ public class ItemController {
         if (null == itemModel) {
             itemModel = itemService.getItemById(id);
             //在本地缓存 存储
-            commonCache.setCommonCache(key,itemModel);
+            commonCache.setCommonCache(key, itemModel);
             //热点数据，解决缓存击穿问题方案一：缓存数据永不过期[不设置过期时间，直接返回]
             if (hotDataBloomFilter.contains(key)) {
 
@@ -203,7 +210,7 @@ public class ItemController {
 
             if (null != itemModel) {
                 //在本地缓存 存储
-                commonCache.setCommonCache(key,itemModel);
+                commonCache.setCommonCache(key, itemModel);
                 redisTemplate.opsForValue().set(key, ItemModel.toJsonString(itemModel), 10, TimeUnit.SECONDS);
             } else {
                 redisTemplate.opsForValue().set(key, null, 5, TimeUnit.SECONDS);
@@ -232,5 +239,41 @@ public class ItemController {
             itemVO.setPromoStatus(0);
         }
         return itemVO;
+    }
+
+    //单条查询，循环多次
+    @RequestMapping(value = "/getItems", method = {RequestMethod.GET})
+    @ResponseBody
+    public CommonReturnType getItems(@RequestParam(name = "startId") Integer startId,
+                                     @RequestParam(name = "endId") Integer endId) {
+        log.info("单次获取数据开始");
+        List<ItemVO> itemVos = new ArrayList<>();
+        long start = System.currentTimeMillis();
+        for (int i = startId; i <= endId; i++) {
+            ItemModel itemModel = itemService.getItemById(i);
+            ItemVO itemVo = convertVOFromModel(itemModel);
+            itemVos.add(itemVo);
+        }
+        long end = System.currentTimeMillis();
+        log.info("单次获取100条数据总共耗时：{}", end - start);
+        return CommonReturnType.create(itemVos);
+    }
+
+    //批量操作
+    @RequestMapping(value = "/getItemsByBatch", method = {RequestMethod.GET})
+    @ResponseBody
+    public CommonReturnType getItemsBatch(@RequestParam(name = "startId") Integer startId,
+                                          @RequestParam(name = "endId") Integer endId) {
+        log.info("批量获取数据开始");
+        long start = System.currentTimeMillis();
+        List<ItemModel> itemModels = itemService.getItemsByBatch(startId, endId);
+        List<ItemVO> itemVOs = new ArrayList<>();
+        for (ItemModel itemModel : itemModels) {
+            ItemVO itemVo = convertVOFromModel(itemModel);
+            itemVOs.add(itemVo);
+        }
+        long end = System.currentTimeMillis();
+        log.info("单次获取100条数据总共耗时：{}", end - start);
+        return CommonReturnType.create(itemVOs);
     }
 }

@@ -15,4 +15,5 @@ public interface ItemDOMapperSpec {
 
     List<ItemDO> selectDataByCons(@Param("offset") Integer startPos, @Param("limit") int pageSize);
 
+    List<ItemDO> getItemsByBatch(@Param("startId") Integer startId,@Param("endId") Integer endId);
 }

@@ -60,4 +60,15 @@
     </set>
     where item_id = #{itemId,jdbcType=INTEGER}
   </update>
+
+  <select id="selectByItemIds" parameterType="java.util.List" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from item_stock
+    where item_id in
+    <foreach collection="list" item="id" open="(" separator="," close=")">
+      #{id}
+    </foreach>
+
+  </select>
 </mapper>

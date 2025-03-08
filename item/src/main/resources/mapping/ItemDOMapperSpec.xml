@@ -47,4 +47,10 @@
         order by id asc limit #{offset}, #{limit}
     </select>
 
+    <select id="getItemsByBatch" resultMap="BaseResultMap">
+        select *
+        from item
+        where id between #{startId} and #{endId}
+        order by id asc
+    </select>
 </mapper>

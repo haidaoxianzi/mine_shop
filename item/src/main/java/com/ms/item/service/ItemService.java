@@ -3,6 +3,8 @@ package com.ms.item.service;
 import com.ms.item.exception.BusinessException;
 import com.ms.item.model.ItemModel;
 
+import java.util.List;
+
 public interface ItemService {
 
     //创建商品
@@ -16,4 +18,5 @@ public interface ItemService {
     ItemModel getItemById(Integer id);
 
 
+    List<ItemModel> getItemsByBatch(Integer startId, Integer endId);
 }
